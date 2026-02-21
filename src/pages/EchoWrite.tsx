@@ -96,8 +96,8 @@ const EchoWrite = () => {
   const dictation = useDictation({
     lang: inputLang,
     onInterimResult: setInterimText,
-    onFinalResult: finalText => {
-      setText(prev => (prev ? prev + ' ' : '') + finalText);
+    onFinalResult: (finalText) => {
+      setText((prev) => (prev ? prev + ' ' : '') + finalText);
     },
     onVoiceCommand: handleVoiceCommand
   });
@@ -277,7 +277,7 @@ const EchoWrite = () => {
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button disabled={!text || isLoading} onClick={handleGenerateAll} className="h-11 rounded-xl primary-button disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">
+                  <button disabled={!text || isLoading} onClick={handleGenerateAll} className="h-11 rounded-xl primary-button disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 items-center justify-center flex flex-col">
                     <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />
                     <span className="text-[11px] font-bold">Generate</span>
                   </button>
@@ -288,8 +288,8 @@ const EchoWrite = () => {
             
             {/* Row 3: Language selector - full width */}
             <div className="flex justify-center">
-              <select value={inputLang} onChange={e => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-3 py-2 w-full text-center">
-                {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>
+              <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-3 py-2 w-full text-center">
+                {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
                     {l.flag} {l.name} {l.displayNative}
                   </option>)}
               </select>
@@ -340,8 +340,8 @@ const EchoWrite = () => {
                 <TooltipTrigger asChild>
                   <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-2xl neu-flat transition-transform hover:scale-[1.02]">
                     <Languages className="w-4 h-4 text-primary flex-shrink-0" />
-                    <select value={inputLang} onChange={e => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer max-w-[200px] truncate">
-                      {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>
+                    <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer max-w-[200px] truncate">
+                      {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
                           {l.flag} {l.name} {l.displayNative}
                         </option>)}
                     </select>
@@ -349,7 +349,7 @@ const EchoWrite = () => {
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[250px]">
                   <p className="text-xs">
-                    {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.displayNative}
+                    {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -358,8 +358,8 @@ const EchoWrite = () => {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="lg:hidden flex items-center">
-                    <select value={inputLang} onChange={e => setInputLang(e.target.value)} className="bg-transparent border-none text-xs font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-2 py-2 min-w-[180px] max-w-[200px]">
-                      {SUPPORTED_LANGUAGES.map(l => <option key={l.code} value={l.code}>
+                    <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-xs font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-2 py-2 min-w-[180px] max-w-[200px]">
+                      {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
                           {l.flag} {l.name} {l.displayNative}
                         </option>)}
                     </select>
@@ -367,7 +367,7 @@ const EchoWrite = () => {
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[280px]">
                   <p className="text-xs font-medium">
-                    {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find(l => l.code === inputLang)?.displayNative}
+                    {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
                   </p>
                 </TooltipContent>
               </Tooltip>
