@@ -119,8 +119,10 @@ const EchoWrite = () => {
         toast.error("Please sign in to generate variations");
       } else if (err.message?.includes('Usage limit exceeded')) {
         toast.error("Daily limit reached. Upgrade to premium for unlimited generations!");
+      } else if (err.message?.includes('503') || err.message?.includes('temporarily busy')) {
+        toast.error("Service is busy. Please try again in a moment.");
       } else {
-        toast.error(err.message || "Failed to generate variations. Please try again.");
+        toast.error("Generation failed. Please try again.");
       }
     } finally {
       setIsLoading(false);
