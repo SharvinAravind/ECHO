@@ -321,7 +321,7 @@ const EchoWrite = () => {
               </div>
             </div>
 
-            <div className="gap-2 lg:gap-3 items-center justify-start flex flex-col">
+            <div className="gap-2 lg:gap-3 flex-row flex items-center justify-center">
               {/* Snow Toggle with Tooltip */}
               <Tooltip>
                 <TooltipTrigger asChild>
