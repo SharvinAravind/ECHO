@@ -103,9 +103,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("API key configuration error");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      console.error("Gemini API key not configured");
       return new Response(
         JSON.stringify({ error: "Service temporarily unavailable" }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -343,17 +343,18 @@ Keep the same tone, formatting, and meaning. Return ONLY the translated text, no
       }
     }
 
-    // Try primary model, fallback to secondary on failure
-    const models = ["google/gemini-2.5-flash", "google/gemini-2.5-flash-lite"];
+    // Call Google Gemini API directly
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
     let aiResponse = null;
     let lastError = "";
 
     for (const model of models) {
       try {
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`;
+        const response = await fetch(geminiUrl, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+            "Authorization": `Bearer ${GEMINI_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -374,16 +375,6 @@ Keep the same tone, formatting, and meaning. Return ONLY the translated text, no
         const errorText = await response.text().catch(() => '');
         lastError = `${response.status}: ${errorText}`;
         console.error(`Model ${model} failed:`, response.status);
-
-        if (response.status === 429) {
-          // Rate limited — try next model
-          continue;
-        }
-        if (response.status === 402) {
-          // Credits exhausted — try next model
-          continue;
-        }
-        // Other errors — try next model
         continue;
       } catch (fetchErr) {
         console.error(`Fetch error for model ${model}:`, fetchErr);
