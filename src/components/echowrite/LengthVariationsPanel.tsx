@@ -208,7 +208,7 @@ export const LengthVariationsPanel = forwardRef<LengthVariationsPanelRef, Length
         </div>
         
         {/* Slider for Variation Count (1-5) - Compact */}
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-[80px] sm:min-w-[100px] neu-flat px-2 py-1.5 rounded-lg">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 neu-flat px-2 py-1.5 rounded-lg">
           <span className="text-[8px] sm:text-[9px] text-muted-foreground font-bold">1</span>
           <Slider
             value={sliderValue}
@@ -216,7 +216,7 @@ export const LengthVariationsPanel = forwardRef<LengthVariationsPanelRef, Length
             min={1}
             max={5}
             step={1}
-            className="flex-1 max-w-[80px]"
+            className="flex-1"
           />
           <span className="text-[8px] sm:text-[9px] text-muted-foreground font-bold">5</span>
           <span className="text-[8px] sm:text-[9px] font-bold text-primary bg-primary/10 px-1 py-0.5 rounded">
