@@ -5,8 +5,15 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Logo } from './Logo';
 import { RocketAnimation } from './RocketAnimation';
-import { lovable } from '@/integrations/lovable';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
+  updateProfile
+} from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { z } from 'zod';
 
 // Validation schemas
@@ -50,7 +57,7 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
 
   const validateInputs = () => {
     const newErrors: { email?: string; password?: string; name?: string } = {};
-    
+
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
       newErrors.email = emailResult.error.errors[0].message;
@@ -69,74 +76,37 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateInputs()) {
       return;
     }
 
     setIsLoading(true);
-    
+
     try {
       if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-
-        if (error) {
-          toast.error(error.message || 'Failed to send reset email');
-          return;
-        }
-
+        await sendPasswordResetEmail(auth, email);
         toast.success('Password reset email sent! Check your inbox.');
         setMode('login');
       } else if (mode === 'signup') {
-        const redirectUrl = `${window.location.origin}/`;
-        
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl,
-            data: { name: name || email.split('@')[0] }
-          }
-        });
-
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast.error('This email is already registered. Please sign in instead.');
-          } else {
-            toast.error(error.message || 'Sign up failed');
-          }
-          return;
-        }
-
-        if (data.user && !data.session) {
-          // Email confirmation required
-          toast.success('Please check your email to confirm your account!');
-        } else if (data.session) {
-          toast.success(`Welcome, ${name || email.split('@')[0]}!`);
+        try {
+          await createUserWithEmailAndPassword(auth, email, password);
+          toast.success("Account created successfully!");
           onAuthSuccess();
+        } catch (signupErr: any) {
+          if (signupErr.code === 'auth/email-already-in-use') {
+            toast.error('User already exists. Please sign in');
+          } else {
+            toast.error(signupErr.message || 'Sign up failed');
+          }
         }
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) {
-          if (error.message.includes('Invalid login')) {
-            toast.error('Invalid email or password');
-          } else if (error.message.includes('Email not confirmed')) {
-            toast.error('Please confirm your email before signing in');
-          } else {
-            toast.error(error.message || 'Sign in failed');
-          }
-          return;
-        }
-
-        if (data.session) {
-          toast.success(`Welcome back!`);
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          toast.success("Welcome back!");
           onAuthSuccess();
+        } catch (signinErr: any) {
+          toast.error('Email or password is incorrect');
         }
       }
     } catch (err: any) {
@@ -149,14 +119,26 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-    const result = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
+      const provider = new GoogleAuthProvider();
+      // Add custom parameters to avoid domain issues
+      provider.setCustomParameters({
+        prompt: 'select_account'
       });
-      if (result.error) {
-        toast.error(result.error.message || "Google sign-in failed");
-      }
+      await signInWithPopup(auth, provider);
+      toast.success("Signed in with Google");
+      onAuthSuccess();
     } catch (err: any) {
-      toast.error(err.message || "Google sign-in failed");
+      // Handle specific Firebase errors
+      const errorCode = err.code;
+      if (errorCode === 'auth/unauthorized-domain') {
+        toast.error('Google login domain not authorized. Please add this domain to your Firebase Console > Authentication > Settings > Authorized domains.');
+      } else if (errorCode === 'auth/popup-closed-by-user') {
+        toast.error('Sign-in popup was closed. Please try again.');
+      } else if (errorCode === 'auth/network-request-failed') {
+        toast.error('Network error. Please check your internet connection.');
+      } else {
+        toast.error(err.message || "Google sign-in failed");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +164,7 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
             Transform Your Words with AI-Powered Writing
           </h2>
           <p className="text-muted-foreground mb-8 max-w-md">
-            Voice-to-text in 25+ languages with 26 AI writing styles, AI art generation, 
+            Voice-to-text in 25+ languages with 26 AI writing styles, AI art generation,
             visual diagrams, and seamless export. Your complete writing assistant.
           </p>
 
@@ -247,7 +229,7 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
               </div>
             ))}
           </div>
-          
+
           {/* Rocket Animation - Bottom Right */}
           <div className="absolute bottom-8 right-8">
             <RocketAnimation size="lg" />
@@ -272,8 +254,8 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
               {mode === 'login'
                 ? 'Enter your credentials to continue'
                 : mode === 'signup'
-                ? 'Start your AI writing journey'
-                : 'Enter your email to receive a reset link'}
+                  ? 'Start your AI writing journey'
+                  : 'Enter your email to receive a reset link'}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
@@ -292,7 +274,7 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
                   )}
                 </div>
               )}
-              
+
               <div className="relative">
                 <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -306,7 +288,7 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
                   <p className="text-xs text-destructive mt-1">{errors.email}</p>
                 )}
               </div>
-              
+
               {mode !== 'forgot' && (
                 <div className="relative">
                   <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -377,10 +359,10 @@ export const AuthScreen = ({ onAuthSuccess }: AuthScreenProps) => {
                     className="w-full h-12 sm:h-14 rounded-xl sm:rounded-2xl neu-flat border-0 gap-2 sm:gap-3 text-xs sm:text-sm font-semibold hover:scale-[1.02] transition-transform"
                   >
                     <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24">
-                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                     </svg>
                     Continue with Google
                   </Button>

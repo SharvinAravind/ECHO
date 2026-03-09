@@ -1,4 +1,0 @@
-project_id = "gmyqyxdkerhohsnqxkso"
-
-[functions.echowrite]
-verify_jwt = false

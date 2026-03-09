@@ -1,8 +1,9 @@
 import { WritingStyle, WritingVariation } from "@/types/echowrite";
 
 const getApiKey = (): string => {
-  const key = import.meta.env.VITE_GEMINI_API_KEY;
-  return typeof key === "string" ? key : "";
+  const key = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+  const trimmed = typeof key === "string" ? key.trim() : "";
+  return trimmed;
 };
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";

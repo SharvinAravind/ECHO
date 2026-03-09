@@ -1,11 +1,12 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig(() => {
-  // .env is loaded into process.env by Vite before config runs
-  const geminiKey = process.env.VITE_GEMINI_API_KEY || "";
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const geminiKey =
+    (env.VITE_GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY ?? env.GEMINI_API_KEY ?? process.env.GEMINI_API_KEY ?? "").toString().trim();
 
   return {
   server: {

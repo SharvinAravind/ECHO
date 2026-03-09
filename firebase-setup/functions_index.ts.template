@@ -1,0 +1,138 @@
+/**
+ * Firebase Cloud Function for EchoWrite (Gemini API Integration)
+ * 
+ * Deployment:
+ * 1. Initialize Firebase: firebase init functions
+ * 2. Select TypeScript
+ * 3. Copy this content to functions/src/index.ts
+ * 4. Set Gemini Secret: firebase functions:secrets:set GEMINI_API_KEY
+ * 5. Deploy: firebase deploy --only functions
+ */
+
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
+import { defineSecret } from "firebase-functions/params";
+
+const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
+
+// Robust JSON extraction logic
+function extractJSON(content: string) {
+  let cleanContent = content.trim();
+  const start = cleanContent.indexOf('{');
+  const end = cleanContent.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    cleanContent = cleanContent.substring(start, end + 1);
+  }
+  cleanContent = cleanContent
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/, '')
+    .replace(/```\s*$/, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleanContent);
+  } catch (e) {
+    // Try to remove potential trailing commas
+    const fixed = cleanContent.replace(/,\s*([\]}])/g, '$1');
+    return JSON.parse(fixed);
+  }
+}
+
+export const echowrite = onCall({ secrets: [GEMINI_API_KEY] }, async (request) => {
+  // Authentication check
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const { action, text, style, targetLanguage, lengthType, visualType } = request.data;
+  
+  if (!text || !action) {
+    throw new HttpsError("invalid-argument", "Missing text or action");
+  }
+
+  const sanitizedText = text.slice(0, 10000);
+  const sanitizedStyle = style || 'Improve Phrasing';
+  const sanitizedLanguage = targetLanguage || 'English';
+
+  let instruction = "";
+  switch (action) {
+    case 'variations':
+      instruction = `You are an elite writing suite. Generate 8 distinct variations of the text for the goal: ${sanitizedStyle}.
+Return ONLY a valid JSON object with a 'variations' array. Each item has: 'id' (v1-v8), 'label', 'suggestedText', 'tone', 'changes' (array of {field, reason}).`;
+      break;
+    case 'length-variations':
+      instruction = `Create 5 variations for each length type (simple, medium, long) of the text.
+Return JSON: { "simple": [], "medium": [], "long": [] }. Each variation has 'id', 'text', 'wordCount'.`;
+      break;
+    case 'generate-visual':
+      instruction = `Generate a Mermaid.js ${visualType || 'diagram'} for the text.
+Return JSON: { "title", "mermaidCode", "description" }. Use only alphanumeric labels.`;
+      break;
+    case 'translate':
+      instruction = `Translate this text to ${sanitizedLanguage}. Return ONLY the translated text.`;
+      break;
+    case 'rephrase':
+      instruction = `Rewrite this text to be ${lengthType || 'medium'} in length. Return ONLY the rephrased text.`;
+      break;
+  }
+
+  const combinedPrompt = `${instruction}\n\nUSER TEXT:\n${sanitizedText}`;
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  let aiContent = "";
+
+  for (const model of models) {
+    try {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY.value()}`;
+      const response = await fetch(geminiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+        }),
+      });
+
+      if (response.ok) {
+        const data: any = await response.json();
+        aiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (aiContent) break;
+      }
+    } catch (e) {
+      logger.error(`Fetch error for ${model}:`, e);
+    }
+  }
+
+  if (!aiContent) {
+    throw new HttpsError("unavailable", "AI response failed");
+  }
+
+  if (['variations', 'length-variations', 'generate-visual'].includes(action)) {
+    try {
+      const result = extractJSON(aiContent);
+      if (action === 'generate-visual' && result.mermaidCode) {
+        result.mermaidCode = result.mermaidCode.replace(/\\n/g, '\n');
+      }
+      return result;
+    } catch (e) {
+      return action === 'variations' ? { variations: [{ id: "v1", label: "Result", suggestedText: aiContent }] } : { text: aiContent };
+    }
+  }
+
+  return { text: aiContent };
+});
+
+export const userAccount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  
+  const { action } = request.data;
+  
+  if (action === 'activate-premium') {
+    // In a real app, update Firestore user document with { role: 'premium' }
+    logger.info(`Activating premium for user: ${request.auth.uid}`);
+    return { ok: true };
+  }
+  
+  return { ok: true };
+});
