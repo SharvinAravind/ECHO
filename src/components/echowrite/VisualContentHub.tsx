@@ -73,18 +73,37 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
   const lastTextRef = useRef<string>('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Manual generate function - now works with single word
+  // Limit concurrency to avoid Gemini rate limits
+  const runWithConcurrency = async (
+    items: typeof visualTypes,
+    fn: (t: (typeof visualTypes)[0]) => Promise<VisualItem>,
+    concurrency = 2
+  ) => {
+    const results: VisualItem[] = new Array(items.length);
+    let i = 0;
+    const worker = async () => {
+      while (i < items.length) {
+        const idx = i++;
+        try {
+          results[idx] = await fn(items[idx]);
+        } catch (e) {
+          throw e;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: concurrency }, worker));
+    return results.filter(Boolean);
+  };
+
   const handleManualGenerate = async () => {
     if (!workspaceText.trim()) {
       toast.error('Please enter some text in workspace');
       return;
     }
-    
     setIsGenerating(true);
     lastTextRef.current = workspaceText;
-
     try {
-      const visualPromises = visualTypes.map(async (type) => {
+      const newItems = await runWithConcurrency(visualTypes, async (type) => {
         const result = await generateVisualContent(workspaceText, type.id);
         return {
           id: `${type.id}-${Date.now()}`,
@@ -94,13 +113,18 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
           description: result.description,
         } as VisualItem;
       });
-
-      const newItems = await Promise.all(visualPromises);
       setGeneratedItems(newItems);
       toast.success('Visual content generated!');
-    } catch (error) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error generating visuals:', error);
-      toast.error('Failed to generate visual content');
+      if (msg.includes('API key') || msg.includes('VITE_GEMINI')) {
+        toast.error('API key issue. Add VITE_GEMINI_API_KEY to .env and restart.');
+      } else if (msg.includes('Network') || msg.includes('fetch')) {
+        toast.error('Network error. Check connection and try again.');
+      } else {
+        toast.error(msg.length > 60 ? 'Visual generation failed. Check console.' : msg);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -148,10 +172,8 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
     debounceRef.current = setTimeout(async () => {
       lastTextRef.current = workspaceText;
       setIsGenerating(true);
-
       try {
-        // Generate all visual types in parallel
-        const visualPromises = visualTypes.map(async (type) => {
+        const newItems = await runWithConcurrency(visualTypes, async (type) => {
           const result = await generateVisualContent(workspaceText, type.id);
           return {
             id: `${type.id}-${Date.now()}`,
@@ -161,8 +183,6 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
             description: result.description,
           } as VisualItem;
         });
-
-        const newItems = await Promise.all(visualPromises);
         setGeneratedItems(newItems);
         toast.success('Visual content generated!');
       } catch (error) {
@@ -171,7 +191,7 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
       } finally {
         setIsGenerating(false);
       }
-    }, 2000); // 2 second debounce
+    }, 2000);
 
     return () => {
       if (debounceRef.current) {

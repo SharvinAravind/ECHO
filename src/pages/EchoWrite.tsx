@@ -23,8 +23,7 @@ const EchoWrite = () => {
   const {
     authUser,
     loading,
-    signOut,
-    refreshUserData
+    signOut
   } = useAuth();
 
   // History
@@ -54,6 +53,7 @@ const EchoWrite = () => {
   // Refs for triggering generate on child components
   const visualContentRef = useRef<VisualContentHubRef>(null);
   const aiContentRef = useRef<AIContentGeneratorRef>(null);
+  const autoMicAttempted = useRef(false);
 
   // Apply theme class to body
   useEffect(() => {
@@ -102,51 +102,64 @@ const EchoWrite = () => {
     onVoiceCommand: handleVoiceCommand
   });
 
-  // Process text with AI
-  const handleProcess = useCallback(async (targetStyle: WritingStyle) => {
-    if (!text.trim() || isLoading) return;
-    setIsLoading(true);
-    setStyle(targetStyle);
-    try {
-      const result = await getWritingVariations(text, targetStyle);
-      setVariations(result.variations);
-      setSelectedVariation(result.variations[0] || null);
-      addToHistory(text, targetStyle, result.variations);
-      toast.success("Generated 8 variations!");
-    } catch (err: any) {
-      console.error(err);
-      if (err.message?.includes('Unauthorized') || err.message?.includes('Invalid token')) {
-        toast.error("Please sign in to generate variations");
-      } else if (err.message?.includes('Usage limit exceeded')) {
-        toast.error("Daily limit reached. Upgrade to premium for unlimited generations!");
-      } else if (err.message?.includes('503') || err.message?.includes('temporarily busy')) {
-        toast.error("Service is busy. Please try again in a moment.");
-      } else {
-        toast.error("Generation failed. Please try again.");
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [text, isLoading, addToHistory]);
+  // Auto-enable microphone on page load when user is authenticated
+  useEffect(() => {
+    if (!authUser || autoMicAttempted.current) return;
+    autoMicAttempted.current = true;
+    const t = setTimeout(() => dictation.start(true), 500);
+    return () => clearTimeout(t);
+  }, [authUser, dictation.start]);
 
-  // Generate All - triggers style variations, length variations, and visual content simultaneously
+  // Process text with AI (managedLoading=false when called from handleGenerateAll)
+  const handleProcess = useCallback(
+    async (targetStyle: WritingStyle, managedLoading = true) => {
+      if (!text.trim() || isLoading) return;
+      if (managedLoading) setIsLoading(true);
+      setStyle(targetStyle);
+      try {
+        const result = await getWritingVariations(text, targetStyle);
+        setVariations(result.variations);
+        setSelectedVariation(result.variations[0] || null);
+        addToHistory(text, targetStyle, result.variations);
+        toast.success("Generated 8 variations!");
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        console.error("Style variations error:", err);
+        if (msg.includes("API key") || msg.includes("VITE_GEMINI")) {
+          toast.error("API key missing. Add VITE_GEMINI_API_KEY to .env and restart.");
+        } else if (msg.includes("Network") || msg.includes("fetch")) {
+          toast.error("Network error. Check connection and try again.");
+        } else if (msg.includes("429") || msg.includes("rate")) {
+          toast.error("Rate limited. Please wait a moment and try again.");
+        } else {
+          toast.error(msg.length > 80 ? "Generation failed. Check console." : msg);
+        }
+      } finally {
+        if (managedLoading) setIsLoading(false);
+      }
+    },
+    [text, isLoading, addToHistory]
+  );
+
+  // Generate All - triggers style, length, and visual simultaneously; keeps loading until all complete
   const handleGenerateAll = useCallback(async () => {
     if (!text.trim() || isLoading) return;
+    setIsLoading(true);
+
     const tasks: Promise<unknown>[] = [];
+    tasks.push(handleProcess(style, false));
+    if (visualContentRef.current) tasks.push(visualContentRef.current.generate());
+    if (aiContentRef.current) tasks.push(aiContentRef.current.generateLengthVariations());
 
-    // Trigger style variations
-    tasks.push(handleProcess(style));
-
-    // Trigger visual content generation
-    if (visualContentRef.current) {
-      tasks.push(visualContentRef.current.generate());
+    const results = await Promise.allSettled(tasks);
+    const failed = results.filter((r) => r.status === "rejected").length;
+    if (failed > 0) {
+      const succeeded = results.length - failed;
+      if (succeeded > 0) {
+        toast.info(`${succeeded} of ${results.length} completed. Check failed sections.`);
+      }
     }
-
-    // Trigger length variations generation
-    if (aiContentRef.current) {
-      tasks.push(aiContentRef.current.generateLengthVariations());
-    }
-    await Promise.allSettled(tasks);
+    setIsLoading(false);
   }, [text, isLoading, style, handleProcess]);
 
   // Handle history item selection
@@ -192,9 +205,8 @@ const EchoWrite = () => {
 
   // Handle payment success
   const handlePaymentSuccess = async () => {
-    // Refresh user data to get updated premium status
-    await refreshUserData();
     toast.success('Welcome to Premium! 🎉');
+    // Note: User data refresh happens automatically via Firebase auth state change
   };
 
   // Show loading state
@@ -420,7 +432,7 @@ const EchoWrite = () => {
           </div>
 
           {/* Row 1: Workspace - Full Width */}
-          <Workspace text={text} onTextChange={setText} onClear={handleClear} onEnterPress={() => handleProcess(style)} interimText={interimText} isDictating={dictation.isDictating} isDictationPaused={dictation.isPaused} dictationTime={dictation.dictationTime} onStartDictation={dictation.start} onStopDictation={dictation.stop} onTogglePause={dictation.togglePause} />
+          <Workspace text={text} onTextChange={setText} onClear={handleClear} onEnterPress={handleGenerateAll} interimText={interimText} isDictating={dictation.isDictating} isDictationPaused={dictation.isPaused} dictationTime={dictation.dictationTime} onStartDictation={dictation.start} onStopDictation={dictation.stop} onTogglePause={dictation.togglePause} />
 
           {/* Row 2: AI-Powered Content Generation with Clear */}
           <AIContentGenerator ref={aiContentRef} currentStyle={style} onSelectStyle={handleProcess} variations={variations} selectedVariation={selectedVariation} onSelectVariation={setSelectedVariation} onApplyToWorkspace={handleApplyToWorkspace} isLoading={isLoading} workspaceText={text} onClear={handleClear} />

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 interface UseDictationOptions {
   lang: string;
@@ -16,7 +17,7 @@ export const useDictation = ({
   const [isDictating, setIsDictating] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [dictationTime, setDictationTime] = useState(0);
-  
+
   const recognitionRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -42,11 +43,11 @@ export const useDictation = ({
     return onVoiceCommand(transcript.toLowerCase().trim());
   }, [onVoiceCommand]);
 
-  const start = useCallback(() => {
+  const start = useCallback((silent = false) => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
+      toast.error("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
       return;
     }
 
@@ -84,6 +85,7 @@ export const useDictation = ({
       setIsDictating(true);
       setIsPaused(false);
       setDictationTime(0);
+      if (!silent) toast.success("Microphone active. Start speaking!");
     };
 
     recognition.onend = () => {
@@ -104,7 +106,7 @@ export const useDictation = ({
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
-        alert("Microphone access denied. Please allow microphone access and try again.");
+        toast.error("Microphone access denied. Please allow microphone access in your browser settings.");
         stop();
       }
     };

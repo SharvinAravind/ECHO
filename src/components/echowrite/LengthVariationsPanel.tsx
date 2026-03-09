@@ -68,8 +68,12 @@ export const LengthVariationsPanel = forwardRef<LengthVariationsPanelRef, Length
   };
 
   const fetchVariations = async () => {
-    if (!text.trim() || text.length < 10) {
-      toast.error('Please enter at least 10 characters');
+    if (!text.trim()) {
+      toast.error('Please enter some text in the workspace');
+      return;
+    }
+    if (text.trim().length < 3) {
+      toast.error('Please enter at least 3 characters');
       return;
     }
     
@@ -82,9 +86,16 @@ export const LengthVariationsPanel = forwardRef<LengthVariationsPanelRef, Length
         setSelectedVariation(result[selectedType][0]);
       }
       toast.success('Length variations generated!');
-    } catch (error) {
-      console.error('Error fetching length variations:', error);
-      toast.error('Failed to generate variations');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Length variations error:", error);
+      if (msg.includes("API key") || msg.includes("VITE_GEMINI")) {
+        toast.error("API key missing. Add VITE_GEMINI_API_KEY to .env and restart.");
+      } else if (msg.includes("Network") || msg.includes("fetch")) {
+        toast.error("Network error. Check connection and try again.");
+      } else {
+        toast.error(msg.length > 60 ? "Length variations failed. Check console." : msg);
+      }
     } finally {
       setIsLoading(false);
     }

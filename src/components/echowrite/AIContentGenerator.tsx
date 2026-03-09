@@ -106,7 +106,7 @@ export const AIContentGenerator = forwardRef<AIContentGeneratorRef, AIContentGen
           </div>
           <LengthVariationsPanel 
             ref={lengthVariationsRef}
-            text={selectedVariation?.suggestedText || workspaceText} 
+            text={workspaceText}
             onApplyToWorkspace={onApplyToWorkspace} 
           />
         </div>
