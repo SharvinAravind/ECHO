@@ -7,7 +7,7 @@ const getApiKey = (): string => {
 };
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"] as const;
+const MODEL = "gemini-1.5-flash";
 
 export interface LengthVariation {
   id: string;
@@ -27,7 +27,7 @@ export interface VisualContent {
   description: string;
 }
 
-/** Call Gemini API with retry, model fallback, and clear error reporting */
+/** Call Gemini API (gemini-1.5-flash) with retry and clear error reporting */
 const callGeminiDirectly = async (
   prompt: string,
   options?: { maxRetries?: number }
@@ -40,83 +40,75 @@ const callGeminiDirectly = async (
   }
 
   const maxRetries = options?.maxRetries ?? 2;
-  let lastError: Error | null = null;
 
-  for (const model of MODELS) {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const url = `${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 4096,
-              topP: 0.95,
-            },
-          }),
-        });
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const url = `${GEMINI_BASE}/${MODEL}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 8192,
+            topP: 0.95,
+          },
+        }),
+      });
 
-        const body = await response.json().catch(() => ({}));
+      const body = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
-          const msg = body?.error?.message || response.statusText;
-          const code = body?.error?.code ?? response.status;
+      if (!response.ok) {
+        const msg = body?.error?.message || response.statusText;
+        const code = body?.error?.code ?? response.status;
 
-          if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
-            await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
-            continue;
-          }
-
-          if (response.status === 400 && /model|not found/i.test(String(msg))) {
-            lastError = new Error(`Model ${model} unavailable: ${msg}`);
-            break;
-          }
-
-          if (response.status === 401 || response.status === 403) {
-            throw new Error(
-              `Invalid API key. Check VITE_GEMINI_API_KEY in .env and get a key from https://aistudio.google.com/apikey`
-            );
-          }
-
-          throw new Error(`Gemini API (${code}): ${msg}`);
-        }
-
-        const text =
-          body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-
-        if (!text) {
-          const blockReason =
-            body?.candidates?.[0]?.finishReason ||
-            body?.candidates?.[0]?.safetyRatings ||
-            "empty response";
-          throw new Error(`No content generated (${String(blockReason)})`);
-        }
-
-        return text;
-      } catch (err: unknown) {
-        lastError = err instanceof Error ? err : new Error(String(err));
-        if (attempt < maxRetries && /429|503|ECONNRESET|fetch failed/i.test(lastError.message)) {
-          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        if ((response.status === 429 || response.status === 503) && attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
-        if (attempt === maxRetries) break;
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(
+            `Invalid API key. Check VITE_GEMINI_API_KEY in .env and get a key from https://aistudio.google.com/apikey`
+          );
+        }
+
+        throw new Error(`Gemini API (${code}): ${msg}`);
       }
+
+      const text =
+        body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+
+      if (!text) {
+        const blockReason =
+          body?.candidates?.[0]?.finishReason ||
+          body?.candidates?.[0]?.safetyRatings ||
+          "empty response";
+        throw new Error(`No content generated (${String(blockReason)})`);
+      }
+
+      return text;
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (attempt < maxRetries && /429|503|ECONNRESET|fetch failed/i.test(error.message)) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        continue;
+      }
+      const msg = error.message;
+      if (/api key|invalid|401|403/i.test(msg)) {
+        throw new Error(
+          "Invalid or missing Gemini API key. Add VITE_GEMINI_API_KEY to .env and restart the dev server."
+        );
+      }
+      if (/network|fetch|failed/i.test(msg)) {
+        throw new Error("Network error. Check your internet connection and try again.");
+      }
+      throw new Error(`Generation failed: ${msg}`);
     }
   }
 
-  const msg = lastError?.message ?? "Unknown error";
-  if (/api key|invalid|401|403/i.test(msg)) {
-    throw new Error(
-      "Invalid or missing Gemini API key. Add VITE_GEMINI_API_KEY to .env and restart the dev server."
-    );
-  }
-  if (/network|fetch|failed/i.test(msg)) {
-    throw new Error("Network error. Check your internet connection and try again.");
-  }
-  throw new Error(`Generation failed: ${msg}`);
+  throw new Error("Generation failed after all retries.");
 };
 
 // Handle variations

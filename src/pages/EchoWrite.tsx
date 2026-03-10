@@ -53,7 +53,6 @@ const EchoWrite = () => {
   // Refs for triggering generate on child components
   const visualContentRef = useRef<VisualContentHubRef>(null);
   const aiContentRef = useRef<AIContentGeneratorRef>(null);
-  const autoMicAttempted = useRef(false);
 
   // Apply theme class to body
   useEffect(() => {
@@ -101,14 +100,6 @@ const EchoWrite = () => {
     },
     onVoiceCommand: handleVoiceCommand
   });
-
-  // Auto-enable microphone on page load when user is authenticated
-  useEffect(() => {
-    if (!authUser || autoMicAttempted.current) return;
-    autoMicAttempted.current = true;
-    const t = setTimeout(() => dictation.start(true), 500);
-    return () => clearTimeout(t);
-  }, [authUser, dictation.start]);
 
   // Process text with AI (managedLoading=false when called from handleGenerateAll)
   const handleProcess = useCallback(
@@ -212,19 +203,19 @@ const EchoWrite = () => {
   // Show loading state
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Logo size="xl" animated />
-          <div className="flex items-center gap-2 mt-4 text-muted-foreground">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Loading...</span>
-          </div>
+      <div className="text-center">
+        <Logo size="xl" animated />
+        <div className="flex items-center gap-2 mt-4 text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Loading...</span>
         </div>
-      </div>;
+      </div>
+    </div>;
   }
 
   // Show auth screen if not logged in
   if (!authUser) {
-    return <AuthScreen onAuthSuccess={() => {}} />;
+    return <AuthScreen onAuthSuccess={() => { }} />;
   }
 
   // Convert authUser to User type for existing components
@@ -237,216 +228,216 @@ const EchoWrite = () => {
     maxUsage: authUser.maxUsage
   };
   return <div className="min-h-screen flex flex-col relative transition-colors duration-700 bg-background overflow-hidden font-sans">
-      {/* Snow Effect */}
-      <SnowEffect enabled={snowEnabled} />
-      {/* History Sidebar */}
-      <HistorySidebar history={history} isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onSelectItem={handleHistorySelect} />
+    {/* Snow Effect */}
+    <SnowEffect enabled={snowEnabled} />
+    {/* History Sidebar */}
+    <HistorySidebar history={history} isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onSelectItem={handleHistorySelect} />
 
-      {/* Navbar - Matching Login Page Branding - Responsive */}
-      <header className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 glass-frosted sticky top-0 z-40">
-        <TooltipProvider delayDuration={300}>
-          {/* Mobile: Three-row layout for complete visibility */}
-          <div className="flex flex-col gap-2 sm:hidden">
-            {/* Row 1: Logo + PRO badge */}
-            <div className="flex justify-center items-center">
-              <div className="flex items-center gap-2">
-                <Logo size="lg" showText animated />
-                {user.tier === 'premium' && <PremiumBadge variant="badge" activated size="sm" />}
-              </div>
-            </div>
-            
-            {/* Row 2: All action buttons - evenly spaced */}
-            <div className="grid grid-cols-4 gap-2 px-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setHistoryOpen(!historyOpen)} className="h-11 rounded-xl neu-button text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5">
-                    <HistoryIcon className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span className="font-semibold text-[11px]">History</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>View History</p></TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setSnowEnabled(!snowEnabled)} className={`h-11 rounded-xl neu-button transition-all flex items-center justify-center gap-1.5 ${snowEnabled ? 'text-primary' : 'text-muted-foreground'}`}>
-                    <Snowflake className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span className="font-semibold text-[11px]">{snowEnabled ? 'On' : 'Snow'}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>{snowEnabled ? 'Disable Snow' : 'Enable Snow'}</p></TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setSettingsOpen(!settingsOpen)} className="h-11 rounded-xl neu-button text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-1.5">
-                    <Settings className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span className="font-semibold text-[11px]">Settings</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Settings & Profile</p></TooltipContent>
-              </Tooltip>
-              
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button disabled={!text || isLoading} onClick={handleGenerateAll} className="h-11 rounded-xl primary-button disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 items-center justify-center flex flex-col">
-                    <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />
-                    <span className="text-[11px] font-bold">Generate</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom"><p>Generate All Content</p></TooltipContent>
-              </Tooltip>
-            </div>
-            
-            {/* Row 3: Language selector - full width */}
-            <div className="flex justify-center">
-              <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-3 py-2 w-full text-center">
-                {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
-                    {l.flag} {l.name} {l.displayNative}
-                  </option>)}
-              </select>
+    {/* Navbar - Matching Login Page Branding - Responsive */}
+    <header className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 lg:py-4 glass-frosted sticky top-0 z-40">
+      <TooltipProvider delayDuration={300}>
+        {/* Mobile: Three-row layout for complete visibility */}
+        <div className="flex flex-col gap-2 sm:hidden">
+          {/* Row 1: Logo + PRO badge */}
+          <div className="flex justify-center items-center">
+            <div className="flex items-center gap-2">
+              <Logo size="lg" showText animated />
+              {user.tier === 'premium' && <PremiumBadge variant="badge" activated size="sm" />}
             </div>
           </div>
 
-          {/* Tablet/Desktop: Single row layout */}
-          <div className="hidden sm:flex justify-between items-center">
-            <div className="flex items-center gap-3 lg:gap-4">
-              {/* History Button with Tooltip */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setHistoryOpen(!historyOpen)} className="p-2 sm:p-2.5 rounded-xl neu-button text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
-                    <HistoryIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden xl:inline text-xs font-semibold">History</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="xl:hidden">
-                  <p>View History</p>
-                </TooltipContent>
-              </Tooltip>
-              
-              {/* Logo + Brand with PRO badge */}
-              <div className="relative flex items-center">
-                <Logo size="2xl" showText animated />
-                {user.tier === 'premium' && <div className="absolute -top-1 -right-2">
-                    <PremiumBadge variant="large" activated />
-                  </div>}
-              </div>
-            </div>
+          {/* Row 2: All action buttons - evenly spaced */}
+          <div className="grid grid-cols-4 gap-2 px-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setHistoryOpen(!historyOpen)} className="h-11 rounded-xl neu-button text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1.5">
+                  <HistoryIcon className="w-[18px] h-[18px] flex-shrink-0" />
+                  <span className="font-semibold text-[11px]">History</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>View History</p></TooltipContent>
+            </Tooltip>
 
-            <div className="gap-2 lg:gap-3 flex-row flex items-center justify-center">
-              {/* Snow Toggle with Tooltip */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setSnowEnabled(!snowEnabled)} className={`p-2 sm:p-2.5 rounded-xl neu-button transition-all flex items-center gap-2 ${snowEnabled ? 'text-primary' : 'text-muted-foreground'}`}>
-                    <Snowflake className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden xl:inline text-xs font-semibold">{snowEnabled ? 'Snow On' : 'Snow'}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="xl:hidden">
-                  <p>{snowEnabled ? 'Disable snow effect' : 'Enable snow effect'}</p>
-                </TooltipContent>
-              </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setSnowEnabled(!snowEnabled)} className={`h-11 rounded-xl neu-button transition-all flex items-center justify-center gap-1.5 ${snowEnabled ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <Snowflake className="w-[18px] h-[18px] flex-shrink-0" />
+                  <span className="font-semibold text-[11px]">{snowEnabled ? 'On' : 'Snow'}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>{snowEnabled ? 'Disable Snow' : 'Enable Snow'}</p></TooltipContent>
+            </Tooltip>
 
-              {/* Language Selector with Flags - Hidden on tablet, shown on desktop */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-2xl neu-flat transition-transform hover:scale-[1.02]">
-                    <Languages className="w-4 h-4 text-primary flex-shrink-0" />
-                    <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer max-w-[200px] truncate">
-                      {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
-                          {l.flag} {l.name} {l.displayNative}
-                        </option>)}
-                    </select>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[250px]">
-                  <p className="text-xs">
-                    {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setSettingsOpen(!settingsOpen)} className="h-11 rounded-xl neu-button text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-1.5">
+                  <Settings className="w-[18px] h-[18px] flex-shrink-0" />
+                  <span className="font-semibold text-[11px]">Settings</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>Settings & Profile</p></TooltipContent>
+            </Tooltip>
 
-              {/* Compact Language Selector - Tablet only */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="lg:hidden flex items-center">
-                    <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-xs font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-2 py-2 min-w-[180px] max-w-[200px]">
-                      {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
-                          {l.flag} {l.name} {l.displayNative}
-                        </option>)}
-                    </select>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[280px]">
-                  <p className="text-xs font-medium">
-                    {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Unified Profile/Settings Button with Tooltip */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button onClick={() => setSettingsOpen(!settingsOpen)} className="p-2 sm:p-2.5 rounded-xl neu-button hover:scale-[1.02] transition-all flex items-center gap-2">
-                    <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
-                    <span className="hidden xl:inline text-xs font-semibold text-muted-foreground">Settings</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="xl:hidden">
-                  <p>Settings & Profile</p>
-                </TooltipContent>
-              </Tooltip>
-
-              {/* Generate All Button */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button disabled={!text || isLoading} onClick={handleGenerateAll} className="primary-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-4 lg:px-6 py-2.5 lg:py-3">
-                    <Sparkles className="w-4 h-4" /> 
-                    <span>GENERATE ALL</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <p>Generate All Variations</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-        </TooltipProvider>
-      </header>
-
-      {/* Main Content - Vertical Layout - Responsive */}
-      <div className="flex flex-1 relative z-10 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col gap-4 sm:gap-6 scrollbar-hide">
-          {/* Row 0: Writing Style Selection - Above Workspace */}
-          <div className="neu-flat rounded-2xl sm:rounded-3xl p-3 sm:p-5">
-            <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl neu-convex flex items-center justify-center flex-shrink-0">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-[11px] sm:text-sm font-bold text-foreground truncate">🎨 Select Writing Style.. 🖋</h3>
-                <p className="text-[10px] sm:text-[10px] text-muted-foreground">Choose your preferred writing style</p>
-              </div>
-            </div>
-            <StyleButtonsPopover currentStyle={style} onSelect={handleProcess} isLoading={isLoading} />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button disabled={!text || isLoading} onClick={handleGenerateAll} className="h-11 rounded-xl primary-button disabled:opacity-50 disabled:cursor-not-allowed gap-1.5 items-center justify-center flex flex-col">
+                  <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />
+                  <span className="text-[11px] font-bold">Generate</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom"><p>Generate All Content</p></TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Row 1: Workspace - Full Width */}
-          <Workspace text={text} onTextChange={setText} onClear={handleClear} onEnterPress={handleGenerateAll} interimText={interimText} isDictating={dictation.isDictating} isDictationPaused={dictation.isPaused} dictationTime={dictation.dictationTime} onStartDictation={dictation.start} onStopDictation={dictation.stop} onTogglePause={dictation.togglePause} />
+          {/* Row 3: Language selector - full width */}
+          <div className="flex justify-center">
+            <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-3 py-2 w-full text-center">
+              {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
+                {l.flag} {l.name} {l.displayNative}
+              </option>)}
+            </select>
+          </div>
+        </div>
 
-          {/* Row 2: AI-Powered Content Generation with Clear */}
-          <AIContentGenerator ref={aiContentRef} currentStyle={style} onSelectStyle={handleProcess} variations={variations} selectedVariation={selectedVariation} onSelectVariation={setSelectedVariation} onApplyToWorkspace={handleApplyToWorkspace} isLoading={isLoading} workspaceText={text} onClear={handleClear} />
+        {/* Tablet/Desktop: Single row layout */}
+        <div className="hidden sm:flex justify-between items-center">
+          <div className="flex items-center gap-3 lg:gap-4">
+            {/* History Button with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setHistoryOpen(!historyOpen)} className="p-2 sm:p-2.5 rounded-xl neu-button text-muted-foreground hover:text-primary transition-colors flex items-center gap-2">
+                  <HistoryIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xl:inline text-xs font-semibold">History</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="xl:hidden">
+                <p>View History</p>
+              </TooltipContent>
+            </Tooltip>
 
-          {/* Row 3: Visual Content Creation */}
-          <VisualContentHub ref={visualContentRef} workspaceText={text} />
-        </main>
-      </div>
+            {/* Logo + Brand with PRO badge */}
+            <div className="relative flex items-center">
+              <Logo size="2xl" showText animated />
+              {user.tier === 'premium' && <div className="absolute -top-1 -right-2">
+                <PremiumBadge variant="large" activated />
+              </div>}
+            </div>
+          </div>
 
-      {/* Settings Panel - Unified with all options */}
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} user={user} currentTheme={currentTheme} onThemeChange={setCurrentTheme} onUpgrade={handleUpgrade} onLogout={handleLogout} />
+          <div className="gap-2 lg:gap-3 flex-row flex items-center justify-center">
+            {/* Snow Toggle with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setSnowEnabled(!snowEnabled)} className={`p-2 sm:p-2.5 rounded-xl neu-button transition-all flex items-center gap-2 ${snowEnabled ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <Snowflake className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xl:inline text-xs font-semibold">{snowEnabled ? 'Snow On' : 'Snow'}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="xl:hidden">
+                <p>{snowEnabled ? 'Disable snow effect' : 'Enable snow effect'}</p>
+              </TooltipContent>
+            </Tooltip>
 
-      {/* Payment Modal */}
-      <PaymentModal isOpen={paymentOpen} onClose={() => setPaymentOpen(false)} onSuccess={handlePaymentSuccess} />
-    </div>;
+            {/* Language Selector with Flags - Hidden on tablet, shown on desktop */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-2xl neu-flat transition-transform hover:scale-[1.02]">
+                  <Languages className="w-4 h-4 text-primary flex-shrink-0" />
+                  <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-[10px] font-bold text-muted-foreground outline-none cursor-pointer max-w-[200px] truncate">
+                    {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
+                      {l.flag} {l.name} {l.displayNative}
+                    </option>)}
+                  </select>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[250px]">
+                <p className="text-xs">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Compact Language Selector - Tablet only */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="lg:hidden flex items-center">
+                  <select value={inputLang} onChange={(e) => setInputLang(e.target.value)} className="bg-transparent border-none text-xs font-bold text-muted-foreground outline-none cursor-pointer neu-flat rounded-xl px-2 py-2 min-w-[180px] max-w-[200px]">
+                    {SUPPORTED_LANGUAGES.map((l) => <option key={l.code} value={l.code}>
+                      {l.flag} {l.name} {l.displayNative}
+                    </option>)}
+                  </select>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px]">
+                <p className="text-xs font-medium">
+                  {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.flag} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.name} {SUPPORTED_LANGUAGES.find((l) => l.code === inputLang)?.displayNative}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Unified Profile/Settings Button with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button onClick={() => setSettingsOpen(!settingsOpen)} className="p-2 sm:p-2.5 rounded-xl neu-button hover:scale-[1.02] transition-all flex items-center gap-2">
+                  <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                  <span className="hidden xl:inline text-xs font-semibold text-muted-foreground">Settings</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="xl:hidden">
+                <p>Settings & Profile</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Generate All Button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button disabled={!text || isLoading} onClick={handleGenerateAll} className="primary-button flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-xs px-4 lg:px-6 py-2.5 lg:py-3">
+                  <Sparkles className="w-4 h-4" />
+                  <span>GENERATE ALL</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>Generate All Variations</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </div>
+      </TooltipProvider>
+    </header>
+
+    {/* Main Content - Vertical Layout - Responsive */}
+    <div className="flex flex-1 relative z-10 overflow-hidden">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-6 flex flex-col gap-4 sm:gap-6 scrollbar-hide">
+        {/* Row 0: Writing Style Selection - Above Workspace */}
+        <div className="neu-flat rounded-2xl sm:rounded-3xl p-3 sm:p-5">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl neu-convex flex items-center justify-center flex-shrink-0">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-[11px] sm:text-sm font-bold text-foreground truncate">🎨 Select Writing Style.. 🖋</h3>
+              <p className="text-[10px] sm:text-[10px] text-muted-foreground">Choose your preferred writing style</p>
+            </div>
+          </div>
+          <StyleButtonsPopover currentStyle={style} onSelect={handleProcess} isLoading={isLoading} />
+        </div>
+
+        {/* Row 1: Workspace - Full Width */}
+        <Workspace text={text} onTextChange={setText} onClear={handleClear} onEnterPress={handleGenerateAll} interimText={interimText} isDictating={dictation.isDictating} isDictationPaused={dictation.isPaused} dictationTime={dictation.dictationTime} onStartDictation={dictation.start} onStopDictation={dictation.stop} onTogglePause={dictation.togglePause} />
+
+        {/* Row 2: AI-Powered Content Generation with Clear */}
+        <AIContentGenerator ref={aiContentRef} currentStyle={style} onSelectStyle={handleProcess} variations={variations} selectedVariation={selectedVariation} onSelectVariation={setSelectedVariation} onApplyToWorkspace={handleApplyToWorkspace} isLoading={isLoading} workspaceText={text} onClear={handleClear} />
+
+        {/* Row 3: Visual Content Creation */}
+        <VisualContentHub ref={visualContentRef} workspaceText={text} />
+      </main>
+    </div>
+
+    {/* Settings Panel - Unified with all options */}
+    <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} user={user} currentTheme={currentTheme} onThemeChange={setCurrentTheme} onUpgrade={handleUpgrade} onLogout={handleLogout} />
+
+    {/* Payment Modal */}
+    <PaymentModal isOpen={paymentOpen} onClose={() => setPaymentOpen(false)} onSuccess={handlePaymentSuccess} />
+  </div>;
 };
 export default EchoWrite;
