@@ -1,64 +1,79 @@
-# EchoWrite - AI-Powered Writing Suite
+# EchoWrite - AI Writing Assistant
 
-EchoWrite is an advanced AI writing assistant that converts voice to text, refines writing styles, and generates visual diagrams.
+## Project Structure
 
-## Project Features
-
-- **Voice-to-Text**: Support for 25+ languages.
-- **26 Writing Styles**: Professional, creative, academic, and more.
-- **AI Visuals**: Generate Mermaid.js diagrams, flowcharts, and mindmaps from text.
-- **Multi-Length Variations**: Generate simple, medium, and long versions of your content.
-- **Premium Themes**: 10 modern, animated UI themes.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v20+)
-- npm
-
-### Installation
-
-1. Clone the repository:
-   ```sh
-   git clone <YOUR_GIT_URL>
-   cd ECHOWRITE-1
-   ```
-
-2. Install dependencies:
-   ```sh
-   npm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env` file with your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
-   ```
-
-4. Start the development server:
-   ```sh
-   npm run dev
-   ```
-
-## Supabase Integration
-
-This project uses Supabase for authentication and edge functions. 
-The main edge function `echowrite` handles AI content generation via Google's Gemini API.
-
-### Setting up the Gemini API Key
-
-Store your Gemini API key as a Supabase Secret:
-```sh
-supabase secrets set GEMINI_API_KEY=your_gemini_api_key
+```
+/
+├── web/                    # Frontend (React + Vite)
+│   ├── src/              # React source code
+│   │   ├── components/  # UI components
+│   │   ├── hooks/       # Custom React hooks (useAuth, useDictation)
+│   │   ├── lib/         # Libraries (Firebase config)
+│   │   ├── pages/       # Page components
+│   │   ├── services/   # AI services (OpenAI)
+│   │   └── assets/     # Images, logos
+│   ├── public/          # Static assets
+│   └── dist/           # Built files
+│
+├── mobile/               # Android App (Capacitor)
+│   └── app/src/main/
+│       └── res/         # Resources (icons, splash)
+│
+├── functions/           # Firebase Cloud Functions (Backend)
+│
+├── docs/                # Documentation
+│
+├── archive/             # Archived old files
+│
+├── .env                 # Environment variables
+└── package.json         # Dependencies
 ```
 
-## Technologies Used
+## Quick Start
 
-- **Vite** & **React**
-- **TypeScript**
-- **Tailwind CSS** & **shadcn/ui**
-- **Supabase** (Auth & Edge Functions)
-- **Google Gemini API**
-- **Mermaid.js** (for visuals)
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev          # Runs on http://localhost:8080
+
+# Build web app
+npm run build
+
+# Build Android APK
+npm run android:build
+```
+
+## Environment Variables (.env)
+
+```env
+# Firebase
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_domain
+VITE_FIREBASE_PROJECT_ID=your_project
+VITE_FIREBASE_APP_ID=your_app_id
+
+# OpenAI (via OpenRouter)
+VITE_OPENROUTER_API_KEY=your_key
+
+# App Check (production)
+VITE_FIREBASE_APP_CHECK_SITE_KEY=your_key
+```
+
+## Features
+
+- ✅ Voice-to-Text (25+ languages)
+- ✅ AI Content Generation (OpenAI GPT-4)
+- ✅ 26 Writing Styles
+- ✅ Firebase Authentication (Email + Google)
+- ✅ Mobile App (Android)
+- ✅ App Check enabled
+
+## Tech Stack
+
+- React + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- Firebase (Auth, Functions, App Check)
+- OpenAI (via OpenRouter)
+- Capacitor (Mobile)
