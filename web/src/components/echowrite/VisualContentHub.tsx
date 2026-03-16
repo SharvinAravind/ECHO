@@ -118,8 +118,8 @@ export const VisualContentHub = forwardRef<VisualContentHubRef, VisualContentHub
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error generating visuals:', error);
-      if (msg.includes('API key') || msg.includes('VITE_GEMINI')) {
-        toast.error('API key issue. Add VITE_GEMINI_API_KEY to .env and restart.');
+      if (msg.includes('API key') || msg.includes('VITE_OPENROUTER')) {
+        toast.error('API key issue. Add VITE_OPENROUTER_API_KEY to .env and restart.');
       } else if (msg.includes('Network') || msg.includes('fetch')) {
         toast.error('Network error. Check connection and try again.');
       } else {

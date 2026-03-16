@@ -116,19 +116,26 @@ export const useAuth = () => {
       setLoading(false);
     });
 
-    // Check for pending redirect sign-in result (important for mobile)
+    // Check for pending redirect sign-in result (important for mobile & Vercel)
     const checkPendingRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
         if (result?.user) {
           console.log('Google redirect sign-in successful');
+          // Dispatch event to notify components
+          window.dispatchEvent(new CustomEvent('google-signin-success'));
         }
       } catch (error: any) {
         // Handle specific redirect errors
-        if (error.code === 'auth/redirect-cancelled-by-user') {
+        if (error.code === 'auth/redirect-cancelled-by-user' || 
+            error.code === 'auth/popup-closed-by-user') {
           console.log('User cancelled redirect');
-        } else if (error.code !== 'auth/no-auth-event') {
-          console.error('Redirect sign-in error:', error);
+        } else if (error.code === 'auth/no-auth-event') {
+          // This is normal - no pending redirect
+        } else if (error.code === 'auth/unauthorized-domain') {
+          console.error('Domain not authorized in Firebase Console');
+        } else {
+          console.error('Redirect sign-in error:', error.code, error.message);
         }
       }
     };
@@ -164,6 +171,7 @@ export const useAuth = () => {
 
   const signInWithGoogle = useCallback(async () => {
     const isMobile = isNativePlatform();
+    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
     
     try {
       const provider = new GoogleAuthProvider();
@@ -171,19 +179,38 @@ export const useAuth = () => {
         prompt: 'select_account'
       });
       
-      if (isMobile) {
-        // For mobile (Capacitor webview), use redirect instead of popup
+      // Add scopes if needed
+      provider.addScope('profile');
+      provider.addScope('email');
+      
+      console.log('Google Sign-In starting...', { isMobile, isLocalhost, hostname: window.location.hostname });
+      
+      if (isMobile || isLocalhost) {
+        // For mobile and localhost, use redirect instead of popup
         // Popup doesn't work well in webviews due to sessionStorage issues
         await signInWithRedirect(auth, provider);
         return { data: null, error: null };
       } else {
-        // For web, use popup
-        const userCredential = await signInWithPopup(auth, provider);
-        return { data: userCredential, error: null };
+        // For web (production), try popup first, fallback to redirect
+        try {
+          const userCredential = await signInWithPopup(auth, provider);
+          return { data: userCredential, error: null };
+        } catch (popupError: any) {
+          // If popup fails (e.g., blocked by popup blocker), use redirect
+          if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
+            console.log('Popup blocked, falling back to redirect...');
+            await signInWithRedirect(auth, provider);
+            return { data: null, error: null };
+          }
+          throw popupError;
+        }
       }
     } catch (error: any) {
       // Handle specific errors gracefully
       const errorCode = error.code;
+      const errorMessage = error.message;
+      
+      console.error('Google Sign-In Error:', errorCode, errorMessage);
       
       // These are not real errors - user cancelled
       if (errorCode === 'auth/popup-closed-by-user' ||
@@ -193,7 +220,13 @@ export const useAuth = () => {
         return { data: null, error: null };
       }
       
-      console.error('Google Sign-In Error:', errorCode, error.message);
+      // Log helpful messages for common errors
+      if (errorCode === 'auth/unauthorized-domain') {
+        console.error('Domain not authorized. Add to Firebase Console > Authentication > Sign-in method > Google > Authorized domains');
+      } else if (errorCode === 'auth/operation-not-allowed') {
+        console.error('Google Sign-In not enabled. Enable in Firebase Console > Authentication > Sign-in method > Google');
+      }
+      
       return { data: null, error };
     }
   }, []);
