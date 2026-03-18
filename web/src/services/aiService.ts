@@ -79,7 +79,7 @@ const callGeminiWithRetry = async (
   const apiKey = getApiKey();
   if (!apiKey || apiKey.length < 10) {
     const errMsg = "Gemini API key missing. Please add VITE_GEMINI_API_KEY to .env file and rebuild the app.";
-    console.error('[AI Service]', errMsg);
+    console.error('[AI Service] ERROR:', errMsg);
     throw new Error(errMsg);
   }
 
@@ -88,9 +88,13 @@ const callGeminiWithRetry = async (
   const temperature = options?.temperature ?? 0.7;
   const maxTokens = options?.maxTokens ?? 4096;
 
+  console.log('[AI Service] Calling Gemini API with model:', model);
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
+      console.log('[AI Service] Request URL:', url.replace(apiKey, '***'));
+      
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -101,19 +105,20 @@ const callGeminiWithRetry = async (
           generationConfig: {
             temperature: temperature,
             maxOutputTokens: maxTokens,
-            topP: 0.95,
-            topK: 40,
           },
         }),
       });
 
+      console.log('[AI Service] Response status:', response.status);
       const body = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         const msg = body?.error?.message || response.statusText;
         const status = response.status;
+        console.error('[AI Service] API Error:', status, msg);
 
         if ((status === 429 || status === 503) && attempt < maxRetries) {
+          console.log('[AI Service] Rate limited, retrying in', RETRY_DELAY_BASE * Math.pow(2, attempt), 'ms');
           await sleep(RETRY_DELAY_BASE * Math.pow(2, attempt));
           continue;
         }
@@ -123,29 +128,32 @@ const callGeminiWithRetry = async (
         }
 
         if (status === 404) {
-          throw new Error(`Model not found: ${model}`);
+          throw new Error(`Model not found: ${model}. Please check the model name.`);
         }
 
-        throw new Error(`Gemini API error: ${msg}`);
+        throw new Error(`Gemini API error (${status}): ${msg}`);
       }
 
       const text = body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!text) {
+        console.warn('[AI Service] Empty response from API');
         throw new Error("No content generated - empty response");
       }
 
+      console.log('[AI Service] Generated content length:', text.length);
       return text;
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
+      console.error('[AI Service] Attempt', attempt + 1, 'error:', error.message);
 
-      if (attempt < maxRetries && /429|503|ECONNRESET|fetch failed/i.test(error.message)) {
+      if (attempt < maxRetries && /429|503|ECONNRESET|fetch failed|timeout/i.test(error.message)) {
         await sleep(RETRY_DELAY_BASE * Math.pow(2, attempt));
         continue;
       }
 
       if (/api key|invalid|401|403|unauthorized/i.test(error.message)) {
-        throw new Error("Invalid or missing Gemini API key.");
+        throw new Error("Invalid or missing Gemini API key. Please check VITE_GEMINI_API_KEY in .env");
       }
       if (/network|fetch|failed/i.test(error.message)) {
         throw new Error("Network error. Check your internet connection.");
