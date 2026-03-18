@@ -289,11 +289,18 @@ export const useAuth = () => {
 
   const signOut = useCallback(async () => {
     try {
+      // Clear all local storage items
       localStorage.removeItem('echowrite_history');
       localStorage.removeItem('echowrite_user');
+      localStorage.removeItem('echowrite_trial_used');
+      localStorage.removeItem('echowrite_trial_count');
+      
+      // Sign out from Firebase
       await firebaseSignOut(auth);
+      
       return { error: null };
     } catch (error: any) {
+      console.error('Sign out error:', error);
       return { error };
     }
   }, []);

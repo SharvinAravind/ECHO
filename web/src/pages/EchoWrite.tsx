@@ -255,13 +255,14 @@ const EchoWrite = () => {
 
   // Handle logout
   const handleLogout = async () => {
-    const {
-      error
-    } = await signOut();
+    const { error } = await signOut();
     if (error) {
       toast.error("Failed to sign out");
     } else {
       toast.success("Logged out successfully");
+      // Force reload to ensure clean state
+      window.location.href = '/';
+      window.location.reload();
     }
     setSettingsOpen(false);
   };
