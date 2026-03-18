@@ -5,8 +5,8 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const openAIKey =
-    (env.VITE_OPENROUTER_API_KEY ?? process.env.VITE_OPENROUTER_API_KEY ?? "").toString().trim();
+  const geminiKey =
+    (env.VITE_GEMINI_API_KEY ?? process.env.VITE_GEMINI_API_KEY ?? "").toString().trim();
 
   return {
   server: {
@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
     },
   },
   define: {
-    'import.meta.env.VITE_OPENROUTER_API_KEY': JSON.stringify(openAIKey),
+    'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(geminiKey),
   },
 };
 });
