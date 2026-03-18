@@ -138,6 +138,7 @@ export const useAuth = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(0);
+  const [processingRedirect, setProcessingRedirect] = useState(false);
 
   const formatUserData = useCallback((user: any) => {
     if (!user) return null;
@@ -160,37 +161,58 @@ export const useAuth = () => {
   }, []);
 
   useEffect(() => {
+    // Set loading to true initially
+    setLoading(true);
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
       setFirebaseUser(user);
       if (user) {
         setAuthUser(formatUserData(user));
       } else {
         setAuthUser(null);
       }
-      setLoading(false);
+      // Only set loading to false when we have a definitive auth state
+      if (!processingRedirect) {
+        setLoading(false);
+      }
     });
 
     // Check for pending redirect sign-in result (important for mobile & Vercel)
     const checkPendingRedirect = async () => {
       try {
+        setProcessingRedirect(true);
+        setLoading(true);
+        console.log('Checking for pending redirect...');
+        
+        // Wait a short moment for Firebase to initialize
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         const result = await getRedirectResult(auth);
+        
         if (result?.user) {
-          console.log('Google redirect sign-in successful');
+          console.log('Google redirect sign-in successful:', result.user.email);
           // Dispatch event to notify components
           window.dispatchEvent(new CustomEvent('google-signin-success'));
+        } else {
+          console.log('No pending redirect found');
         }
       } catch (error: any) {
-        // Handle specific redirect errors
+        console.log('Redirect check error:', error.code);
+        // Don't treat these as critical errors
         if (error.code === 'auth/redirect-cancelled-by-user' || 
             error.code === 'auth/popup-closed-by-user') {
           console.log('User cancelled redirect');
         } else if (error.code === 'auth/no-auth-event') {
           // This is normal - no pending redirect
         } else if (error.code === 'auth/unauthorized-domain') {
-          console.error('Domain not authorized in Firebase Console');
-        } else {
-          console.error('Redirect sign-in error:', error.code, error.message);
+          console.error('Domain not authorized - add to Firebase Console');
         }
+      } finally {
+        // Small delay to ensure auth state is synchronized
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setProcessingRedirect(false);
+        setLoading(false);
       }
     };
     

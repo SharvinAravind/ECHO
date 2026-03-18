@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, Sparkles, CheckCircle2, Star, Zap, Crown, KeyRound, Mic, FileText, Palette, Globe, Wand2, Download, Cloud, Shield, Clock, BarChart3, Bolt } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,13 +41,35 @@ const premiumFeatures = [
 ];
 
 export const AuthScreen = ({ onAuthSuccess, onGetStarted }: AuthScreenProps) => {
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, authUser } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; name?: string }>({});
+
+  // Handle redirect success - when Google redirect completes, reload to update auth state
+  useEffect(() => {
+    const handleGoogleSignInSuccess = () => {
+      console.log('Google sign-in redirect completed, reloading page...');
+      toast.success('Signed in successfully!');
+      // Reload to ensure clean auth state
+      window.location.reload();
+    };
+
+    window.addEventListener('google-signin-success', handleGoogleSignInSuccess);
+    return () => window.removeEventListener('google-signin-success', handleGoogleSignInSuccess);
+  }, []);
+
+  // If user is already logged in via redirect, trigger success
+  useEffect(() => {
+    if (authUser) {
+      console.log('User is authenticated:', authUser.email);
+      toast.success('Welcome back!');
+      onAuthSuccess();
+    }
+  }, [authUser, onAuthSuccess]);
 
   const validateInputs = () => {
     const newErrors: { email?: string; password?: string; name?: string } = {};
