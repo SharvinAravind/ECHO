@@ -11,15 +11,15 @@ export interface GenerationState {
 const getApiKey = (): string => {
   const key = import.meta.env.VITE_GEMINI_API_KEY ?? "";
   const trimmed = typeof key === "string" ? key.trim() : "";
-  console.log('[AI Service] Gemini 2.0 Flash API Key present:', !!trimmed, '| Model:', MODEL_NAME);
+  console.log('[AI Service] Gemini API Key present:', !!trimmed, '| Model:', MODEL_NAME);
   if (!trimmed || trimmed.length < 10) {
     console.error('[AI Service] API Key missing. VITE_GEMINI_API_KEY not found in environment.');
   }
   return trimmed;
 };
 
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1/models";
-const MODEL_NAME = "gemini-2.0-flash";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const MODEL_NAME = "gemini-1.5-flash";
 const MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1500;
 
