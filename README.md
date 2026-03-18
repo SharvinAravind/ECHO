@@ -10,7 +10,7 @@
 │   │   ├── hooks/       # Custom React hooks (useAuth, useDictation)
 │   │   ├── lib/         # Libraries (Firebase config)
 │   │   ├── pages/       # Page components
-│   │   ├── services/   # AI services (OpenAI)
+│   │   ├── services/   # AI services (Gemini)
 │   │   └── assets/     # Images, logos
 │   ├── public/          # Static assets
 │   └── dist/           # Built files
@@ -54,8 +54,8 @@ VITE_FIREBASE_AUTH_DOMAIN=your_domain
 VITE_FIREBASE_PROJECT_ID=your_project
 VITE_FIREBASE_APP_ID=your_app_id
 
-# OpenAI (via OpenRouter)
-VITE_OPENROUTER_API_KEY=your_key
+# Gemini AI
+VITE_GEMINI_API_KEY=your_key
 
 # App Check (production)
 VITE_FIREBASE_APP_CHECK_SITE_KEY=your_key
@@ -64,7 +64,7 @@ VITE_FIREBASE_APP_CHECK_SITE_KEY=your_key
 ## Features
 
 - ✅ Voice-to-Text (25+ languages)
-- ✅ AI Content Generation (OpenAI GPT-4)
+- ✅ AI Content Generation (Gemini 2.0 Flash)
 - ✅ 26 Writing Styles
 - ✅ Firebase Authentication (Email + Google)
 - ✅ Mobile App (Android)
@@ -75,5 +75,5 @@ VITE_FIREBASE_APP_CHECK_SITE_KEY=your_key
 - React + TypeScript + Vite
 - Tailwind CSS + shadcn/ui
 - Firebase (Auth, Functions, App Check)
-- OpenAI (via OpenRouter)
+- Gemini AI (Google)
 - Capacitor (Mobile)
