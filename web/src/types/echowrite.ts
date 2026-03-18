@@ -168,7 +168,7 @@ export const THEMES: ThemeOption[] = [
   { id: 'sunset-glow', name: 'Sunset Glow', description: 'Warm orange and coral gradients', isPremium: true, previewColors: ['#fef3e8', '#f97316', '#facc15'] },
 ];
 
-export type UserTier = 'free' | 'premium';
+export type UserTier = 'free' | 'premium' | 'trial';
 
 export interface User {
   id: string;

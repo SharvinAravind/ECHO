@@ -13,7 +13,7 @@ import { VisualContentHub, VisualContentHubRef } from '@/components/echowrite/Vi
 import { PaymentModal } from '@/components/echowrite/PaymentModal';
 import { StyleButtonsPopover } from '@/components/echowrite/StyleButtonsPopover';
 import { useDictation } from '@/hooks/useDictation';
-import { incrementUsage, getRemainingUsage } from '@/hooks/useAuth';
+import { incrementUsage, getRemainingUsage, isTrialUser, getTrialCount, incrementTrialCount } from '@/hooks/useAuth';
 import { useHistory } from '@/hooks/useHistory';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -50,6 +50,7 @@ const EchoWrite = () => {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [inputLang, setInputLang] = useState('en-US');
   const [currentTheme, setCurrentTheme] = useState<Theme>('neumorphic-green');
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Refs for triggering generate on child components
   const visualContentRef = useRef<VisualContentHubRef>(null);
@@ -118,8 +119,8 @@ const EchoWrite = () => {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         console.error("Style variations error:", err);
-        if (msg.includes("API key") || msg.includes("VITE_OPENROUTER")) {
-          toast.error("API key missing. Add VITE_OPENROUTER_API_KEY to .env and restart.");
+        if (msg.includes("API key") || msg.includes("VITE_GEMINI")) {
+          toast.error("API key missing. Add VITE_GEMINI_API_KEY to .env and restart.");
         } else if (msg.includes("Network") || msg.includes("fetch")) {
           toast.error("Network error. Check connection and try again.");
         } else if (msg.includes("429") || msg.includes("rate")) {
@@ -138,9 +139,15 @@ const EchoWrite = () => {
   // Generate All - triggers style, length, and visual simultaneously; keeps loading until all complete
   const handleGenerateAll = useCallback(async () => {
     // Check usage limits
-    const { remaining, limit, isPremium } = getRemainingUsage();
+    const { remaining, limit, isPremium, isTrial } = getRemainingUsage();
     
-    if (!isPremium && remaining <= 0) {
+    if (isTrial && remaining <= 0) {
+      toast.error('Your free trials have been used. Please sign up to continue!');
+      setShowLoginPrompt(true);
+      return;
+    }
+    
+    if (!isPremium && !isTrial && remaining <= 0) {
       toast.error(`Daily limit reached (${limit} free generations). Upgrade to Premium for unlimited!`);
       return;
     }
@@ -296,19 +303,44 @@ const EchoWrite = () => {
     </div>;
   }
 
-  // Show auth screen if not logged in
-  if (!authUser) {
-    return <AuthScreen onAuthSuccess={() => { }} />;
+  const isTrial = isTrialUser();
+  const trialCount = getTrialCount();
+  const isInTrialMode = isTrial && trialCount > 0;
+
+  // Show auth screen if not logged in and not in trial mode
+  if (!authUser && !isInTrialMode) {
+    return <AuthScreen onAuthSuccess={() => { }} onGetStarted={() => { 
+      localStorage.setItem('echowrite_trial_used', 'true');
+      localStorage.setItem('echowrite_trial_count', '5');
+      window.location.reload();
+    }} />;
+  }
+
+  // Show login prompt when trial is exhausted
+  if (showLoginPrompt || (isTrial && trialCount <= 0)) {
+    return <AuthScreen onAuthSuccess={() => { setShowLoginPrompt(false); }} onGetStarted={() => {
+      localStorage.setItem('echowrite_trial_used', 'true');
+      localStorage.setItem('echowrite_trial_count', '5');
+      setShowLoginPrompt(false);
+    }} />;
   }
 
   // Convert authUser to User type for existing components
-  const user: User = {
+  // For trial users, create a mock user object
+  const user: User = authUser ? {
     id: authUser.id,
     email: authUser.email,
     name: authUser.name,
     tier: authUser.tier,
     usageCount: authUser.usageCount,
     maxUsage: authUser.maxUsage
+  } : {
+    id: 'trial-user',
+    email: 'trial@echowrite.app',
+    name: 'Trial User',
+    tier: 'trial',
+    usageCount: 0,
+    maxUsage: trialCount
   };
   return <div className="min-h-screen flex flex-col relative transition-colors duration-700 bg-background overflow-hidden font-sans">
     {/* Snow Effect */}

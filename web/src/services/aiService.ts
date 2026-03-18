@@ -9,18 +9,17 @@ export interface GenerationState {
 }
 
 const getApiKey = (): string => {
-  const key = import.meta.env.VITE_OPENROUTER_API_KEY ?? "";
+  const key = import.meta.env.VITE_GEMINI_API_KEY ?? "";
   const trimmed = typeof key === "string" ? key.trim() : "";
+  console.log('[AI Service] Gemini 2.0 Flash API Key present:', !!trimmed, '| Model:', MODEL_NAME);
+  if (!trimmed || trimmed.length < 10) {
+    console.error('[AI Service] API Key missing. VITE_GEMINI_API_KEY not found in environment.');
+  }
   return trimmed;
 };
 
-const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-const MODELS = {
-  primary: "openai/gpt-4o-mini",
-  fallback: "openai/gpt-4o",
-  lite: "openai/gpt-4o-mini"
-};
-
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1/models";
+const MODEL_NAME = "gemini-2.0-flash";
 const MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1500;
 
@@ -68,42 +67,43 @@ export const WRITING_STYLES: { id: string; name: string; description: string }[]
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const callOpenAIWithRetry = async (
+const callGeminiWithRetry = async (
   prompt: string,
-  options?: { 
-    model?: string; 
+  options?: {
+    model?: string;
     maxRetries?: number;
     temperature?: number;
     maxTokens?: number;
-    stream?: boolean;
   }
 ): Promise<string> => {
   const apiKey = getApiKey();
   if (!apiKey || apiKey.length < 10) {
-    throw new Error("OpenRouter API key missing. Add VITE_OPENROUTER_API_KEY to .env and restart.");
+    const errMsg = "Gemini API key missing. Please add VITE_GEMINI_API_KEY to .env file and rebuild the app.";
+    console.error('[AI Service]', errMsg);
+    throw new Error(errMsg);
   }
 
-  const model = options?.model || MODELS.primary;
+  const model = options?.model || MODEL_NAME;
   const maxRetries = options?.maxRetries ?? MAX_RETRIES;
   const temperature = options?.temperature ?? 0.7;
   const maxTokens = options?.maxTokens ?? 4096;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const url = `${OPENROUTER_BASE}/chat/completions`;
+      const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-          "HTTP-Referer": window.location.origin || "http://localhost:3001",
-          "X-Title": "EchoWrite AI"
         },
         body: JSON.stringify({
-          model: model,
-          messages: [{ role: "user", content: prompt }],
-          temperature: temperature,
-          max_tokens: maxTokens,
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: temperature,
+            maxOutputTokens: maxTokens,
+            topP: 0.95,
+            topK: 40,
+          },
         }),
       });
 
@@ -118,19 +118,18 @@ const callOpenAIWithRetry = async (
           continue;
         }
 
-        if (status === 404 && model !== MODELS.fallback) {
-          console.warn(`Model ${model} not found, trying fallback`);
-          return callOpenAIWithRetry(prompt, { ...options, model: MODELS.fallback });
-        }
-
         if (status === 401 || status === 403) {
-          throw new Error(`Invalid API key. Check VITE_OPENROUTER_API_KEY in .env`);
+          throw new Error(`Invalid API key. Check VITE_GEMINI_API_KEY in .env`);
         }
 
-        throw new Error(`OpenRouter API error: ${msg}`);
+        if (status === 404) {
+          throw new Error(`Model not found: ${model}`);
+        }
+
+        throw new Error(`Gemini API error: ${msg}`);
       }
 
-      const text = body?.choices?.[0]?.message?.content?.trim();
+      const text = body?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!text) {
         throw new Error("No content generated - empty response");
@@ -139,14 +138,14 @@ const callOpenAIWithRetry = async (
       return text;
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error(String(err));
-      
+
       if (attempt < maxRetries && /429|503|ECONNRESET|fetch failed/i.test(error.message)) {
         await sleep(RETRY_DELAY_BASE * Math.pow(2, attempt));
         continue;
       }
 
-      if (/api key|invalid|401|403/i.test(error.message)) {
-        throw new Error("Invalid or missing OpenRouter API key.");
+      if (/api key|invalid|401|403|unauthorized/i.test(error.message)) {
+        throw new Error("Invalid or missing Gemini API key.");
       }
       if (/network|fetch|failed/i.test(error.message)) {
         throw new Error("Network error. Check your internet connection.");
@@ -190,7 +189,7 @@ ${formatHint}
 
 Return ONLY valid JSON, no other text or explanations.`;
 
-  const response = await callOpenAIWithRetry(prompt, { temperature: 0.8, maxTokens: 4096 });
+  const response = await callGeminiWithRetry(prompt, { temperature: 0.8, maxTokens: 4096 });
 
   try {
     const jsonMatch = response.match(/\[[\s\S]*\]/);
@@ -226,7 +225,6 @@ const handleLengthVariations = async (
   text: string,
   lengths: string[] = ["short", "medium", "long", "detailed"]
 ): Promise<LengthVariations> => {
-  // Ensure all titles and content are in English
   const prompt = `Generate 5 variations of the following text in four lengths (ALL OUTPUT IN ENGLISH): 
 - SHORT: Very concise (under 30 words)
 - MEDIUM: Moderate length (30-60 words)  
@@ -247,7 +245,7 @@ Return ONLY a JSON object with this exact structure:
 
 Each array should have exactly 5 variations. Return ONLY valid JSON.`;
 
-  const response = await callOpenAIWithRetry(prompt, { temperature: 0.7, maxTokens: 6144 });
+  const response = await callGeminiWithRetry(prompt, { temperature: 0.7, maxTokens: 6144 });
   const wc = text.split(/\s+/).filter(Boolean).length;
   const def = { id: "1", text, wordCount: wc };
 
@@ -303,7 +301,7 @@ Return ONLY a JSON object with this exact structure:
 
 Return ONLY valid JSON, no explanations.`;
 
-  const response = await callOpenAIWithRetry(prompt, { temperature: 0.5, maxTokens: 2048 });
+  const response = await callGeminiWithRetry(prompt, { temperature: 0.5, maxTokens: 2048 });
   const safeTitle = text.substring(0, 30).replace(/"/g, "'");
 
   try {
@@ -342,7 +340,7 @@ const handleFormatConversion = async (
   };
 
   const prompt = `${formatDescriptions[format] || "Rewrite"} the following text:\n\n"${text}"\n\nReturn ONLY the converted text, no explanations.`;
-  return callOpenAIWithRetry(prompt, { temperature: 0.7, maxTokens: 2048 });
+  return callGeminiWithRetry(prompt, { temperature: 0.7, maxTokens: 2048 });
 };
 
 const handleTranslate = async (
@@ -354,7 +352,7 @@ const handleTranslate = async (
 Text: "${text}"
 
 Translation:`;
-  return callOpenAIWithRetry(prompt, { temperature: 0.5, maxTokens: 2048 });
+  return callGeminiWithRetry(prompt, { temperature: 0.5, maxTokens: 2048 });
 };
 
 const handleRephrase = async (
@@ -372,7 +370,7 @@ const handleRephrase = async (
 Text: "${text}"
 
 Rephrased:`;
-  return callOpenAIWithRetry(prompt, { temperature: 0.7, maxTokens: 2048 });
+  return callGeminiWithRetry(prompt, { temperature: 0.7, maxTokens: 2048 });
 };
 
 export const getWritingVariations = async (

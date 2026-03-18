@@ -5,6 +5,39 @@ import { UserTier } from '@/types/echowrite';
 
 const FREE_DAILY_LIMIT = 10;
 const PREMIUM_DAILY_LIMIT = 99999;
+const TRIAL_LIMIT = 5;
+const TRIAL_AFTER_SIGNUP = 10;
+
+export const isTrialUser = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem('echowrite_trial_used') === 'true';
+};
+
+export const getTrialCount = (): number => {
+  if (typeof window === 'undefined') return 0;
+  const count = localStorage.getItem('echowrite_trial_count');
+  return count ? parseInt(count, 10) : 0;
+};
+
+export const incrementTrialCount = (): number => {
+  if (typeof window === 'undefined') return 0;
+  const count = getTrialCount();
+  const newCount = count + 1;
+  localStorage.setItem('echowrite_trial_count', newCount.toString());
+  return newCount;
+};
+
+export const setTrialAfterSignup = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('echowrite_trial_count', TRIAL_AFTER_SIGNUP.toString());
+  localStorage.setItem('echowrite_trial_used', 'true');
+};
+
+export const clearTrial = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('echowrite_trial_used');
+  localStorage.removeItem('echowrite_trial_count');
+};
 
 // Check if running in Capacitor native platform
 const isNativePlatform = (): boolean => {
@@ -44,23 +77,44 @@ const getDailyUsage = (): { date: string; count: number } => {
 export const incrementUsage = (): number => {
   if (typeof window === 'undefined') return 0;
   
+  // If in trial mode, decrement trial count instead of daily usage
+  if (isTrialUser()) {
+    return incrementTrialCount();
+  }
+  
   const usage = getDailyUsage();
   usage.count += 1;
   localStorage.setItem('echowrite_daily_usage', JSON.stringify(usage));
   return usage.count;
 };
 
-export const getRemainingUsage = (): { remaining: number; limit: number; isPremium: boolean } => {
-  if (typeof window === 'undefined') return { remaining: 0, limit: FREE_DAILY_LIMIT, isPremium: false };
+export const getRemainingUsage = (): { remaining: number; limit: number; isPremium: boolean; isTrial: boolean } => {
+  if (typeof window === 'undefined') return { remaining: 0, limit: FREE_DAILY_LIMIT, isPremium: false, isTrial: false };
   
   const isPremium = roleToTier(null) === 'premium';
+  const isTrial = isTrialUser();
   const usage = getDailyUsage();
-  const limit = isPremium ? PREMIUM_DAILY_LIMIT : FREE_DAILY_LIMIT;
+  
+  let limit: number;
+  let remaining: number;
+  
+  if (isTrial) {
+    const trialCount = getTrialCount();
+    limit = trialCount;
+    remaining = Math.max(0, trialCount);
+  } else if (isPremium) {
+    limit = PREMIUM_DAILY_LIMIT;
+    remaining = Math.max(0, limit - usage.count);
+  } else {
+    limit = FREE_DAILY_LIMIT;
+    remaining = Math.max(0, limit - usage.count);
+  }
   
   return {
-    remaining: Math.max(0, limit - usage.count),
+    remaining,
     limit,
-    isPremium
+    isPremium,
+    isTrial
   };
 };
 
@@ -154,6 +208,7 @@ export const useAuth = () => {
   const signUp = useCallback(async (email: string, password: string) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      setTrialAfterSignup();
       return { data: userCredential, error: null };
     } catch (error: any) {
       return { data: null, error };
@@ -194,6 +249,7 @@ export const useAuth = () => {
         // For web (production), try popup first, fallback to redirect
         try {
           const userCredential = await signInWithPopup(auth, provider);
+          setTrialAfterSignup();
           return { data: userCredential, error: null };
         } catch (popupError: any) {
           // If popup fails (e.g., blocked by popup blocker), use redirect
