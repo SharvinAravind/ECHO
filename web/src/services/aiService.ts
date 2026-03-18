@@ -18,8 +18,8 @@ const getApiKey = (): string => {
   return trimmed;
 };
 
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODEL_NAME = "gemini-1.5-flash";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1/models";
+const MODEL_NAME = "gemini-2.5-flash";
 const MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1500;
 
