@@ -234,33 +234,23 @@ export const useAuth = () => {
         prompt: 'select_account'
       });
       
-      // Add scopes if needed
+      // Add scopes
       provider.addScope('profile');
       provider.addScope('email');
       
-      console.log('Google Sign-In starting...', { isMobile, isLocalhost, hostname: window.location.hostname });
+      console.log('Google Sign-In starting...', { 
+        isMobile, 
+        isLocalhost, 
+        hostname: window.location.hostname,
+        href: typeof window !== 'undefined' ? window.location.href : 'N/A'
+      });
       
-      if (isMobile || isLocalhost) {
-        // For mobile and localhost, use redirect instead of popup
-        // Popup doesn't work well in webviews due to sessionStorage issues
-        await signInWithRedirect(auth, provider);
-        return { data: null, error: null };
-      } else {
-        // For web (production), try popup first, fallback to redirect
-        try {
-          const userCredential = await signInWithPopup(auth, provider);
-          setTrialAfterSignup();
-          return { data: userCredential, error: null };
-        } catch (popupError: any) {
-          // If popup fails (e.g., blocked by popup blocker), use redirect
-          if (popupError.code === 'auth/popup-blocked' || popupError.code === 'auth/popup-closed-by-user') {
-            console.log('Popup blocked, falling back to redirect...');
-            await signInWithRedirect(auth, provider);
-            return { data: null, error: null };
-          }
-          throw popupError;
-        }
-      }
+      // Always use redirect for better reliability in production
+      // Popup can be blocked by browsers
+      console.log('Using redirect method for Google Sign-In...');
+      await signInWithRedirect(auth, provider);
+      return { data: null, error: null };
+      
     } catch (error: any) {
       // Handle specific errors gracefully
       const errorCode = error.code;
@@ -278,7 +268,12 @@ export const useAuth = () => {
       
       // Log helpful messages for common errors
       if (errorCode === 'auth/unauthorized-domain') {
-        console.error('Domain not authorized. Add to Firebase Console > Authentication > Sign-in method > Google > Authorized domains');
+        const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
+        console.error(`Domain "${domain}" is not authorized.`);
+        console.error('To fix: Go to Firebase Console > Authentication > Sign-in method > Google > Authorized domains');
+        console.error('Add these domains:');
+        console.error('  - echo-gamma-seven.vercel.app');
+        console.error('  - localhost');
       } else if (errorCode === 'auth/operation-not-allowed') {
         console.error('Google Sign-In not enabled. Enable in Firebase Console > Authentication > Sign-in method > Google');
       }

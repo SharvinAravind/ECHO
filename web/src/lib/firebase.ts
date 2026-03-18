@@ -16,14 +16,19 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize auth and functions
+// Initialize auth with custom settings
 export const auth = getAuth(app);
+
+// Set auth domain explicitly for all platforms
+auth.tenantId = undefined;
+
+// Initialize functions
 export const functions = getFunctions(app);
 
 // Only initialize analytics in browser (not needed for mobile app)
 if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
     // Only run analytics in browser, not in Capacitor webview
-    const isCapacitor = window.Capacitor?.isNativePlatform?.() ?? false;
+    const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() ?? false;
     if (!isCapacitor) {
         getAnalytics(app);
     }
