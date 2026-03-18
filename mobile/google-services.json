@@ -14,8 +14,16 @@
       },
       "oauth_client": [
         {
-          "client_id": "442339019118-mkemuuqv7fce9eiirradnhdhbdko32s8.apps.googleusercontent.com",
+          "client_id": "442339019118-raal59cu21b4fh63jgjsnv11sqqpvugn.apps.googleusercontent.com",
           "client_type": 3
+        },
+        {
+          "client_id": "442339019118-raal59cu21b4fh63jgjsnv11sqqpvugn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.echowrite.app",
+            "sha1_cert": "45:09:91:25:2E:1E:93:41:CA:06:A8:7F:78:FA:92:45:29:5E:4C:1C"
+          }
         }
       ],
       "api_key": [
@@ -27,7 +35,7 @@
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "442339019118-mkemuuqv7fce9eiirradnhdhbdko32s8.apps.googleusercontent.com",
+              "client_id": "442339019118-raal59cu21b4fh63jgjsnv11sqqpvugn.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
