@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, AuthError } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { UserTier } from '@/types/echowrite';
 
@@ -37,13 +37,6 @@ export const clearTrial = (): void => {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('echowrite_trial_used');
   localStorage.removeItem('echowrite_trial_count');
-};
-
-// Check if running in Capacitor native platform
-const isNativePlatform = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return !!(window as any).Capacitor?.isNativePlatform?.() || 
-         /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 };
 
 const roleToTier = (email?: string | null): UserTier => {
@@ -138,7 +131,6 @@ export const useAuth = () => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshFlag, setRefreshFlag] = useState(0);
-  const [processingRedirect, setProcessingRedirect] = useState(false);
 
   const formatUserData = useCallback((user: any) => {
     if (!user) return null;
@@ -161,62 +153,15 @@ export const useAuth = () => {
   }, []);
 
   useEffect(() => {
-    // Set loading to true initially
-    setLoading(true);
-    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Auth state changed:', user ? `User: ${user.email}` : 'No user');
       setFirebaseUser(user);
       if (user) {
         setAuthUser(formatUserData(user));
       } else {
         setAuthUser(null);
       }
-      // Only set loading to false when we have a definitive auth state
-      if (!processingRedirect) {
-        setLoading(false);
-      }
+      setLoading(false);
     });
-
-    // Check for pending redirect sign-in result (important for mobile & Vercel)
-    const checkPendingRedirect = async () => {
-      try {
-        setProcessingRedirect(true);
-        setLoading(true);
-        console.log('Checking for pending redirect...');
-        
-        // Wait a short moment for Firebase to initialize
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const result = await getRedirectResult(auth);
-        
-        if (result?.user) {
-          console.log('Google redirect sign-in successful:', result.user.email);
-          // Dispatch event to notify components
-          window.dispatchEvent(new CustomEvent('google-signin-success'));
-        } else {
-          console.log('No pending redirect found');
-        }
-      } catch (error: any) {
-        console.log('Redirect check error:', error.code);
-        // Don't treat these as critical errors
-        if (error.code === 'auth/redirect-cancelled-by-user' || 
-            error.code === 'auth/popup-closed-by-user') {
-          console.log('User cancelled redirect');
-        } else if (error.code === 'auth/no-auth-event') {
-          // This is normal - no pending redirect
-        } else if (error.code === 'auth/unauthorized-domain') {
-          console.error('Domain not authorized - add to Firebase Console');
-        }
-      } finally {
-        // Small delay to ensure auth state is synchronized
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setProcessingRedirect(false);
-        setLoading(false);
-      }
-    };
-    
-    checkPendingRedirect();
 
     return () => unsubscribe();
   }, [formatUserData, refreshFlag]);
@@ -247,55 +192,37 @@ export const useAuth = () => {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    const isMobile = isNativePlatform();
-    const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-    
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account'
       });
       
-      // Add scopes
       provider.addScope('profile');
       provider.addScope('email');
       
-      console.log('Google Sign-In starting...', { 
-        isMobile, 
-        isLocalhost, 
-        hostname: window.location.hostname,
-        href: typeof window !== 'undefined' ? window.location.href : 'N/A'
-      });
+      console.log('Google Sign-In starting with popup...');
       
-      // Always use redirect for better reliability in production
-      // Popup can be blocked by browsers
-      console.log('Using redirect method for Google Sign-In...');
-      await signInWithRedirect(auth, provider);
-      return { data: null, error: null };
+      const result = await signInWithPopup(auth, provider);
+      console.log('Google Sign-In successful:', result.user.email);
+      return { data: result, error: null };
       
     } catch (error: any) {
-      // Handle specific errors gracefully
       const errorCode = error.code;
       const errorMessage = error.message;
       
       console.error('Google Sign-In Error:', errorCode, errorMessage);
       
-      // These are not real errors - user cancelled
       if (errorCode === 'auth/popup-closed-by-user' ||
-          errorCode === 'auth/redirect-cancelled-by-user' ||
-          errorCode === 'auth/cancelled' ||
-          errorCode === 'auth/no-auth-event') {
+          errorCode === 'auth/cancelled') {
         return { data: null, error: null };
       }
       
-      // Log helpful messages for common errors
       if (errorCode === 'auth/unauthorized-domain') {
         const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
         console.error(`Domain "${domain}" is not authorized.`);
         console.error('To fix: Go to Firebase Console > Authentication > Sign-in method > Google > Authorized domains');
-        console.error('Add these domains:');
-        console.error('  - echo-gamma-seven.vercel.app');
-        console.error('  - localhost');
+        console.error('Add this domain to Firebase Console authorized domains list.');
       } else if (errorCode === 'auth/operation-not-allowed') {
         console.error('Google Sign-In not enabled. Enable in Firebase Console > Authentication > Sign-in method > Google');
       }

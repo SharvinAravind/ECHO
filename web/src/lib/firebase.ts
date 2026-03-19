@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";
+import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
@@ -16,18 +16,20 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize auth with custom settings
+// Initialize auth
 export const auth = getAuth(app);
 
-// Set auth domain explicitly for all platforms
-auth.tenantId = undefined;
+// Clear any tenant ID (use default Firebase project)
+auth.tenantId = null;
+
+// Set browser local persistence
+setPersistence(auth, browserLocalPersistence).catch(console.error);
 
 // Initialize functions
 export const functions = getFunctions(app);
 
 // Only initialize analytics in browser (not needed for mobile app)
 if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
-    // Only run analytics in browser, not in Capacitor webview
     const isCapacitor = (window as any).Capacitor?.isNativePlatform?.() ?? false;
     if (!isCapacitor) {
         getAnalytics(app);
