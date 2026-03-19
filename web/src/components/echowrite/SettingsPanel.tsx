@@ -319,18 +319,22 @@ export const SettingsPanel = ({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - Fixed and full coverage */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 animate-fade-in" 
+        className={cn(
+          'fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity duration-200',
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
         onClick={onClose}
       />
       
       {/* Panel - Responsive */}
-      <div className="fixed right-0 top-0 h-full w-full sm:max-w-lg bg-card z-50 overflow-hidden flex flex-col animate-slide-in-right shadow-2xl">
+      <div className={cn(
+        'fixed right-0 top-0 h-full w-full sm:max-w-lg bg-card z-[70] overflow-hidden flex flex-col transition-transform duration-300 ease-out shadow-2xl',
+        isOpen ? 'translate-x-0' : 'translate-x-full'
+      )}>
         {/* Header */}
         <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border/30 flex items-center justify-between bg-gradient-to-r from-card to-muted/30">
           <div className="flex items-center gap-2 sm:gap-3">

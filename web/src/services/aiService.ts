@@ -20,8 +20,8 @@ const getApiKey = (): string => {
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1/models";
 const MODEL_NAME = "gemini-2.5-flash";
-const MAX_RETRIES = 3;
-const RETRY_DELAY_BASE = 1500;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_BASE = 500;
 
 export interface LengthVariation {
   id: string;

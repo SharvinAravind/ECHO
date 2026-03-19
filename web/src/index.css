@@ -1021,9 +1021,9 @@
     }
   }
 
-  /* Logo bounce animation - matching reference video */
+  /* Logo bounce animation - reduced duration for faster feel */
   .logo-bounce {
-    animation: logo-bounce-motion 3s ease-in-out infinite;
+    animation: logo-bounce-motion 2s ease-in-out infinite;
   }
 
   @keyframes logo-bounce-motion {

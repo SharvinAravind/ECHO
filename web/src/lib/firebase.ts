@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { getAuth, browserSessionPersistence, setPersistence } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
@@ -22,8 +22,8 @@ export const auth = getAuth(app);
 // Clear any tenant ID (use default Firebase project)
 auth.tenantId = null;
 
-// Set browser local persistence
-setPersistence(auth, browserLocalPersistence).catch(console.error);
+// Set browser session persistence (default - clears when browser closes)
+setPersistence(auth, browserSessionPersistence).catch(console.error);
 
 // Initialize functions
 export const functions = getFunctions(app);

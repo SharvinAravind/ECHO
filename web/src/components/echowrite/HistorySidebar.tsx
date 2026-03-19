@@ -12,22 +12,23 @@ interface HistorySidebarProps {
 export const HistorySidebar = ({ history, isOpen, onClose, onSelectItem }: HistorySidebarProps) => {
   return (
     <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-foreground/10 backdrop-blur-sm z-40"
-          onClick={onClose}
-        />
-      )}
+      {/* Backdrop - Fixed and full coverage */}
+      <div 
+        className={cn(
+          'fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] transition-opacity duration-300',
+          isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        )}
+        onClick={onClose}
+      />
       
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full w-80 z-50 transition-transform duration-500 transform',
+          'fixed left-0 top-0 h-full w-80 z-[70] transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="h-full neu-flat rounded-r-3xl p-6 flex flex-col">
+        <div className="h-full neu-flat rounded-r-3xl p-6 flex flex-col shadow-xl">
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
