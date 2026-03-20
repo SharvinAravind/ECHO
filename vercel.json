@@ -1,4 +1,5 @@
 {
+  "name": "echowrite-pro",
   "buildCommand": "npm run build",
   "outputDirectory": "web/dist",
   "framework": "vite",
