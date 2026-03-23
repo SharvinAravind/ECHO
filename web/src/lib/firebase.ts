@@ -3,9 +3,24 @@ import { getAnalytics } from "firebase/analytics";
 import { getAuth, browserSessionPersistence, setPersistence } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
+const getAuthDomain = (): string => {
+    const envDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN;
+    if (envDomain) return envDomain;
+    
+    if (typeof window !== 'undefined') {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'echowrite-pro-flame.vercel.app';
+        }
+        return window.location.hostname.includes('vercel.app') 
+            ? window.location.hostname 
+            : 'echowrite-pro-flame.vercel.app';
+    }
+    return 'echowrite-pro-flame.vercel.app';
+};
+
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    authDomain: getAuthDomain(),
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
