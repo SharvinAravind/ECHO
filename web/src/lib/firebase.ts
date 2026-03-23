@@ -9,13 +9,13 @@ const getAuthDomain = (): string => {
     
     if (typeof window !== 'undefined') {
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'echowrite-pro-flame.vercel.app';
+            return 'echowrite-pro.vercel.app';
         }
         return window.location.hostname.includes('vercel.app') 
             ? window.location.hostname 
-            : 'echowrite-pro-flame.vercel.app';
+            : 'echowrite-pro.vercel.app';
     }
-    return 'echowrite-pro-flame.vercel.app';
+    return 'echowrite-pro.vercel.app';
 };
 
 const firebaseConfig = {
