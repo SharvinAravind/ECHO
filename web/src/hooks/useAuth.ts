@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup, AuthError } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { UserTier } from '@/types/echowrite';
 
@@ -70,7 +70,6 @@ const getDailyUsage = (): { date: string; count: number } => {
 export const incrementUsage = (): number => {
   if (typeof window === 'undefined') return 0;
   
-  // If in trial mode, decrement trial count instead of daily usage
   if (isTrialUser()) {
     return incrementTrialCount();
   }
@@ -153,6 +152,11 @@ export const useAuth = () => {
   }, []);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       if (user) {
@@ -173,6 +177,7 @@ export const useAuth = () => {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
+    if (!auth) return { data: null, error: new Error('Auth not initialized') };
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       setTrialAfterSignup();
@@ -183,6 +188,7 @@ export const useAuth = () => {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!auth) return { data: null, error: new Error('Auth not initialized') };
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return { data: userCredential, error: null };
@@ -192,6 +198,8 @@ export const useAuth = () => {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    if (!auth) return { data: null, error: new Error('Auth not initialized') };
+    
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
@@ -201,30 +209,15 @@ export const useAuth = () => {
       provider.addScope('profile');
       provider.addScope('email');
       
-      console.log('Google Sign-In starting with popup...');
-      
       const result = await signInWithPopup(auth, provider);
-      console.log('Google Sign-In successful:', result.user.email);
       return { data: result, error: null };
       
     } catch (error: any) {
-      const errorCode = error.code;
-      const errorMessage = error.message;
+      console.error('Google Sign-In Error:', error.code, error.message);
       
-      console.error('Google Sign-In Error:', errorCode, errorMessage);
-      
-      if (errorCode === 'auth/popup-closed-by-user' ||
-          errorCode === 'auth/cancelled') {
+      if (error.code === 'auth/popup-closed-by-user' ||
+          error.code === 'auth/cancelled') {
         return { data: null, error: null };
-      }
-      
-      if (errorCode === 'auth/unauthorized-domain') {
-        const domain = typeof window !== 'undefined' ? window.location.hostname : 'unknown';
-        console.error(`Domain "${domain}" is not authorized.`);
-        console.error('To fix: Go to Firebase Console > Authentication > Sign-in method > Google > Authorized domains');
-        console.error('Add this domain to Firebase Console authorized domains list.');
-      } else if (errorCode === 'auth/operation-not-allowed') {
-        console.error('Google Sign-In not enabled. Enable in Firebase Console > Authentication > Sign-in method > Google');
       }
       
       return { data: null, error };
@@ -232,16 +225,14 @@ export const useAuth = () => {
   }, []);
 
   const signOut = useCallback(async () => {
+    if (!auth) return { error: new Error('Auth not initialized') };
     try {
-      // Clear all local storage items
       localStorage.removeItem('echowrite_history');
       localStorage.removeItem('echowrite_user');
       localStorage.removeItem('echowrite_trial_used');
       localStorage.removeItem('echowrite_trial_count');
       
-      // Sign out from Firebase
       await firebaseSignOut(auth);
-      
       return { error: null };
     } catch (error: any) {
       console.error('Sign out error:', error);
